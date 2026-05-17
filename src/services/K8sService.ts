@@ -62,14 +62,14 @@ export class K8sService {
       const logResponse = await this.k8sApi.readNamespacedPodLog(
         podName,
         this.namespace,
-        'cs2-server',
         undefined,
         undefined,
         undefined,
-        false,
+        undefined,
+        undefined,
         tailLines,
         undefined,
-        false
+        undefined
       );
 
       return logResponse.body || '';
