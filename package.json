@@ -1,0 +1,25 @@
+{
+  "name": "cs-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node dist/server.js",
+    "dev": "node --watch src/server.js",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.0",
+    "@fastify/jwt": "^8.0.0",
+    "@fastify/multipart": "^8.0.0",
+    "@fastify/rate-limit": "^9.0.0",
+    "@kubernetes/client-node": "^0.20.0",
+    "fastify": "^4.25.0",
+    "fastify-type-provider-zod": "^1.1.0",
+    "rcon-client": "^4.2.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}
