@@ -59,7 +59,8 @@ export class K8sService {
       }
 
       const podName = pods.body.items[0].metadata?.name || '';
-      const logResponse = await this.k8sApi.readNamespacedPodLog(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const logResponse = await (this.k8sApi as any).readNamespacedPodLog(
         podName,
         this.namespace,
         'cs2-server',
