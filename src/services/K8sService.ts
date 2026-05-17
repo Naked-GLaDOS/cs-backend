@@ -81,9 +81,12 @@ export class K8sService {
 
   async restartServer(): Promise<{ success: boolean; message: string }> {
     try {
-      const deployment = await this.appsApi.readNamespacedDeployment('cs2-server', this.namespace);
+      const { body: deployment } = await this.appsApi.readNamespacedDeployment('cs2-server', this.namespace);
 
-      if (!deployment.metadata?.annotations) {
+      if (!deployment.metadata) {
+        deployment.metadata = {};
+      }
+      if (!deployment.metadata.annotations) {
         deployment.metadata.annotations = {};
       }
 
@@ -132,7 +135,7 @@ export class K8sService {
 
   async updateEnvVars(envVars: Record<string, string>): Promise<{ success: boolean; message: string }> {
     try {
-      const deployment = await this.appsApi.readNamespacedDeployment('cs2-server', this.namespace);
+      const { body: deployment } = await this.appsApi.readNamespacedDeployment('cs2-server', this.namespace);
 
       if (!deployment.spec?.template?.spec?.containers?.[0]?.env) {
         return { success: false, message: 'No containers found' };
@@ -142,7 +145,7 @@ export class K8sService {
       const existingEnv = container.env || [];
 
       for (const [key, value] of Object.entries(envVars)) {
-        const existingIndex = existingEnv.findIndex(e => e.name === key);
+        const existingIndex = existingEnv.findIndex((e: { name: string }) => e.name === key);
         if (existingIndex >= 0) {
           existingEnv[existingIndex].value = value;
         } else {

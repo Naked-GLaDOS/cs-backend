@@ -5,7 +5,6 @@ export class RconService {
   private host: string;
   private port: number;
   private password: string;
-  private reconnecting = false;
 
   constructor() {
     this.host = process.env.CS2_RCON_HOST || 'cs2-server.apps.svc.cluster.local';
@@ -14,7 +13,7 @@ export class RconService {
   }
 
   async connect(): Promise<Rcon> {
-    if (this.rcon && this.rcon.connected) {
+    if (this.rcon) {
       return this.rcon;
     }
 
@@ -54,7 +53,7 @@ export class RconService {
   async getStatus(): Promise<{ online: boolean; players?: number; maxPlayers?: number; map?: string; gameMode?: string }> {
     try {
       const status = await this.send('status');
-      const players = await this.send('players');
+      await this.send('players');
 
       const playerMatch = status.match(/(\d+) humans?/);
       const maxMatch = status.match(/max\s+(\d+)/i);

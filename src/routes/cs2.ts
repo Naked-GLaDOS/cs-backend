@@ -1,18 +1,19 @@
 import { z } from 'zod';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { rconService } from '../services/RconService.js';
 import { k8sService } from '../services/K8sService.js';
 
-export default async function cs2Routes(fastify) {
+export default async function cs2Routes(fastify: FastifyInstance) {
   const typedFastify = fastify.withTypeProvider();
 
-  typedFastify.addHook('preHandler', async (request, reply) => {
+  typedFastify.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const payload = await request.jwtVerify();
-      const hasCs2Permission = payload.scope === 'admin' || payload.permissions?.includes('cs2');
+      const hasCs2Permission = (payload as Record<string, unknown>).scope === 'admin' || ((payload as Record<string, unknown>).permissions as string[] | undefined)?.includes('cs2');
       if (!hasCs2Permission) {
         return reply.status(403).send({ error: 'Forbidden: Requires CS2 access permission' });
       }
-    } catch (err) {
+    } catch {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
   });
@@ -35,9 +36,9 @@ export default async function cs2Routes(fastify) {
       params: z.object({ userId: z.coerce.number() }),
       body: z.object({ reason: z.string().optional() }),
     },
-  }, async (request) => {
-    const { userId } = request.params;
-    const { reason } = request.body;
+  }, async (request: FastifyRequest) => {
+    const { userId } = request.params as { userId: number };
+    const { reason } = request.body as { reason?: string };
     const result = await rconService.kickPlayer(userId, reason);
     return { success: true, message: result };
   });
@@ -47,9 +48,9 @@ export default async function cs2Routes(fastify) {
       params: z.object({ userId: z.coerce.number() }),
       body: z.object({ duration: z.number().default(0), reason: z.string().optional() }),
     },
-  }, async (request) => {
-    const { userId } = request.params;
-    const { duration, reason } = request.body;
+  }, async (request: FastifyRequest) => {
+    const { userId } = request.params as { userId: number };
+    const { duration, reason } = request.body as { duration: number; reason?: string };
     const result = await rconService.banPlayer(userId, duration, reason);
     return { success: true, message: result };
   });
@@ -67,8 +68,8 @@ export default async function cs2Routes(fastify) {
     schema: {
       body: z.object({ map: z.string() }),
     },
-  }, async (request) => {
-    const { map } = request.body;
+  }, async (request: FastifyRequest) => {
+    const { map } = request.body as { map: string };
     const result = await rconService.changeMap(map);
     return { success: true, message: result };
   });
@@ -90,8 +91,8 @@ export default async function cs2Routes(fastify) {
     schema: {
       body: z.object({ mode: z.string() }),
     },
-  }, async (request) => {
-    const { mode } = request.body;
+  }, async (request: FastifyRequest) => {
+    const { mode } = request.body as { mode: string };
     const result = await rconService.setGameMode(mode);
     return { success: true, message: result };
   });
@@ -113,8 +114,8 @@ export default async function cs2Routes(fastify) {
         settings: z.record(z.string(), z.string()),
       }),
     },
-  }, async (request) => {
-    const { settings } = request.body;
+  }, async (request: FastifyRequest) => {
+    const { settings } = request.body as { settings: Record<string, string> };
     const results = await rconService.setCVars(settings);
     return { success: true, results };
   });
@@ -123,8 +124,8 @@ export default async function cs2Routes(fastify) {
     schema: {
       body: z.object({ command: z.string().min(1) }),
     },
-  }, async (request) => {
-    const { command } = request.body;
+  }, async (request: FastifyRequest) => {
+    const { command } = request.body as { command: string };
     const result = await rconService.send(command);
     return { command, result };
   });
@@ -135,8 +136,8 @@ export default async function cs2Routes(fastify) {
         tail: z.coerce.number().default(500),
       }),
     },
-  }, async (request) => {
-    const { tail } = request.query;
+  }, async (request: FastifyRequest) => {
+    const { tail } = request.query as { tail: number };
     const logs = await k8sService.getPodLogs(tail);
     return { logs };
   });
@@ -160,8 +161,8 @@ export default async function cs2Routes(fastify) {
     schema: {
       body: z.object({ message: z.string().min(1).max(200) }),
     },
-  }, async (request) => {
-    const { message } = request.body;
+  }, async (request: FastifyRequest) => {
+    const { message } = request.body as { message: string };
     const result = await rconService.say(message);
     return { success: true, message: result };
   });
