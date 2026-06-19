@@ -3,6 +3,20 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { rconService } from '../services/RconService.js';
 import { k8sService } from '../services/K8sService.js';
 
+const ALLOWED_MAPS = new Set([
+  'de_dust2', 'de_inferno', 'de_mirage', 'de_nuke', 'de_overpass',
+  'de_vertigo', 'de_ancient', 'de_anubis', 'de_mills', 'de_thera',
+  'de_palais', 'de_basalt', 'cs_italy', 'cs_office',
+]);
+
+const ALLOWED_CVARS = new Set([
+  'mp_maxrounds', 'mp_roundtime', 'mp_roundtime_defuse',
+  'mp_freezetime', 'mp_buytime', 'mp_startmoney',
+  'mp_maxmoney', 'mp_teamcashawards', 'mp_playercashawards',
+  'mp_friendlyfire', 'mp_autokick', 'mp_solid_teammates',
+  'sv_cheats', 'hostname', 'sv_password',
+]);
+
 export default async function cs2Routes(fastify: FastifyInstance) {
   const typedFastify = fastify.withTypeProvider();
 
@@ -68,8 +82,11 @@ export default async function cs2Routes(fastify: FastifyInstance) {
     schema: {
       body: z.object({ map: z.string() }),
     },
-  }, async (request: FastifyRequest) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { map } = request.body as { map: string };
+    if (!ALLOWED_MAPS.has(map)) {
+      return reply.status(400).send({ error: `Unknown map: ${map}` });
+    }
     const result = await rconService.changeMap(map);
     return { success: true, message: result };
   });
@@ -114,8 +131,12 @@ export default async function cs2Routes(fastify: FastifyInstance) {
         settings: z.record(z.string(), z.string()),
       }),
     },
-  }, async (request: FastifyRequest) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { settings } = request.body as { settings: Record<string, string> };
+    const unknown = Object.keys(settings).filter(k => !ALLOWED_CVARS.has(k));
+    if (unknown.length > 0) {
+      return reply.status(400).send({ error: `Unknown or disallowed cvars: ${unknown.join(', ')}` });
+    }
     const results = await rconService.setCVars(settings);
     return { success: true, results };
   });

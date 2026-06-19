@@ -96,11 +96,13 @@ export class RconService {
   }
 
   async kickPlayer(userId: number, reason?: string): Promise<string> {
-    return this.send(`kick ${userId}${reason ? ` "${reason}"` : ''}`);
+    const safeReason = reason?.replace(/"/g, '') ?? '';
+    return this.send(`kick ${userId}${safeReason ? ` "${safeReason}"` : ''}`);
   }
 
   async banPlayer(userId: number, durationMinutes: number = 0, reason?: string): Promise<string> {
-    return this.send(`banid ${durationMinutes} ${userId}${reason ? ` "${reason}"` : ''}`);
+    const safeReason = reason?.replace(/"/g, '') ?? '';
+    return this.send(`banid ${durationMinutes} ${userId}${safeReason ? ` "${safeReason}"` : ''}`);
   }
 
   async changeMap(mapName: string): Promise<string> {
@@ -151,7 +153,7 @@ export class RconService {
   }
 
   async say(message: string): Promise<string> {
-    return this.send(`say "${message}"`);
+    return this.send(`say "${message.replace(/"/g, '')}"`);
   }
 
   async restartGame(): Promise<string> {

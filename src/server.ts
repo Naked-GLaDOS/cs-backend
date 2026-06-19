@@ -26,12 +26,21 @@ server.register(rateLimit, {
   timeWindow: '1 minute',
 });
 
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret || jwtSecret === 'super-secret-key-change-me') {
+  console.error('[SECURITY FATAL] JWT_SECRET is not set or is using the insecure default. Set a strong random value and restart.');
+  process.exit(1);
+}
 server.register(jwt, {
-  secret: process.env.JWT_SECRET || 'super-secret-key-change-me',
+  secret: jwtSecret,
 });
 
+const allowedOrigins = (process.env.CORS_ORIGINS || 'https://naked-glados.com,https://cs.naked-glados.com').split(',');
 server.register(cors, {
-  origin: true,
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error('Not allowed by CORS'), false);
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 });
 
