@@ -1,6 +1,6 @@
 {
   "name": "cs-backend",
-  "version": "1.7.4",
+  "version": "1.7.5",
   "type": "module",
   "scripts": {
     "start": "node dist/server.js",
