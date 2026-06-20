@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { rconService } from '../services/RconService.js';
 import { k8sService } from '../services/K8sService.js';
+import { metrics } from '../metrics.js';
 
 const ALLOWED_MAPS = new Set([
   'de_dust2', 'de_inferno', 'de_mirage', 'de_nuke', 'de_overpass',
@@ -202,5 +203,13 @@ export default async function cs2Routes(fastify: FastifyInstance) {
       serverIp: process.env.CS2_SERVER_IP || '',
       podStatus,
     };
+  });
+
+  typedFastify.get('/metrics', async (request: FastifyRequest, reply: FastifyReply) => {
+    const payload = request.user as Record<string, unknown>;
+    if (payload.scope !== 'SYSTEM_ADMIN') {
+      return reply.status(403).send({ error: 'Forbidden: Requires SYSTEM_ADMIN scope' });
+    }
+    return metrics;
   });
 }

@@ -4,6 +4,7 @@ import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import cs2Routes from './routes/cs2.js';
+import { rconService } from './services/RconService.js';
 
 const server = Fastify({
   logger: true,
@@ -13,6 +14,10 @@ server.setValidatorCompiler(validatorCompiler);
 server.setSerializerCompiler(serializerCompiler);
 
 server.setErrorHandler((error, request, reply) => {
+  if (error.statusCode === 401 || error.statusCode === 403) {
+    server.log.warn(`[${error.statusCode}] Unauthorized: ${error.message}`);
+    return reply.status(error.statusCode).send({ error: 'Unauthorized' });
+  }
   if (error.statusCode === 400) {
     server.log.warn(`[400] Validation Error: ${error.message}`);
   } else {
@@ -26,10 +31,18 @@ server.register(rateLimit, {
   timeWindow: '1 minute',
 });
 
+const WEAK_JWT_DEFAULTS = [
+  'super-secret-key-change-me',
+  'secret',
+  'changeme',
+  'password',
+  'jwt-secret',
+  'your-secret-key',
+];
+
 const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret || jwtSecret === 'super-secret-key-change-me') {
-  console.error('[SECURITY FATAL] JWT_SECRET is not set or is using the insecure default. Set a strong random value and restart.');
-  process.exit(1);
+if (!jwtSecret || jwtSecret.length < 32 || WEAK_JWT_DEFAULTS.includes(jwtSecret)) {
+  throw new Error('JWT_SECRET must be at least 32 characters and not a default value');
 }
 server.register(jwt, {
   secret: jwtSecret,
@@ -44,11 +57,18 @@ server.register(cors, {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 });
 
-server.register(cs2Routes, { prefix: '/cs2' });
-
 server.get('/health', async () => {
-  return { status: 'ok', timestamp: new Date().toISOString() };
+  let rconOk = false;
+  try {
+    await rconService.send('status');
+    rconOk = true;
+  } catch {
+    rconOk = false;
+  }
+  return { status: 'ok', rcon: rconOk, uptime: process.uptime() };
 });
+
+server.register(cs2Routes, { prefix: '/cs2' });
 
 const start = async () => {
   try {

@@ -1,42 +1,77 @@
 import { Rcon } from 'rcon-client';
+import { metrics } from '../metrics.js';
 
 export class RconService {
   private rcon: Rcon | null = null;
   private host: string;
   private port: number;
   private password: string;
+  private reconnectAttempts: number = 0;
+  private reconnectDelay: number = 1000;
 
   constructor() {
     this.host = process.env.CS2_RCON_HOST || 'cs2-server.apps.svc.cluster.local';
     this.port = parseInt(process.env.CS2_RCON_PORT || '27015');
-    this.password = process.env.CS2_RCON_PASSWORD || 'changeme';
+
+    const password = process.env.CS2_RCON_PASSWORD;
+    if (!password) {
+      throw new Error('CS2_RCON_PASSWORD environment variable is required');
+    }
+    this.password = password;
   }
 
-  async connect(): Promise<Rcon> {
+  async ensureConnected(): Promise<Rcon> {
     if (this.rcon) {
       return this.rcon;
     }
 
-    try {
-      this.rcon = await Rcon.connect({
-        host: this.host,
-        port: this.port,
-        password: this.password,
-      });
-      console.log('[RCON] Connected to CS2 server');
-      return this.rcon;
-    } catch (error) {
-      console.error('[RCON] Connection failed:', error);
-      throw error;
+    const MAX_ATTEMPTS = 5;
+    const MAX_DELAY = 30000;
+
+    while (this.reconnectAttempts < MAX_ATTEMPTS) {
+      try {
+        this.rcon = await Rcon.connect({
+          host: this.host,
+          port: this.port,
+          password: this.password,
+        });
+        if (this.reconnectAttempts > 0) {
+          metrics.reconnections++;
+          console.log(`[RCON] Reconnected after ${this.reconnectAttempts} attempt(s)`);
+        } else {
+          console.log('[RCON] Connected to CS2 server');
+        }
+        this.reconnectAttempts = 0;
+        this.reconnectDelay = 1000;
+        return this.rcon;
+      } catch (error) {
+        this.reconnectAttempts++;
+        console.error(`[RCON] Connection attempt ${this.reconnectAttempts}/${MAX_ATTEMPTS} failed:`, error);
+        if (this.reconnectAttempts >= MAX_ATTEMPTS) {
+          this.reconnectAttempts = 0;
+          this.reconnectDelay = 1000;
+          throw new Error(`[RCON] Failed to connect after ${MAX_ATTEMPTS} attempts`);
+        }
+        await new Promise(resolve => setTimeout(resolve, this.reconnectDelay));
+        this.reconnectDelay = Math.min(this.reconnectDelay * 2, MAX_DELAY);
+      }
     }
+
+    throw new Error('[RCON] Failed to connect');
+  }
+
+  async connect(): Promise<Rcon> {
+    return this.ensureConnected();
   }
 
   async send(command: string): Promise<string> {
     try {
-      const client = await this.connect();
+      const client = await this.ensureConnected();
       const response = await client.send(command);
+      metrics.commandsExecuted++;
       return response || '';
     } catch (error) {
+      metrics.commandErrors++;
       console.error('[RCON] Command failed:', error);
       this.rcon = null;
       throw error;
